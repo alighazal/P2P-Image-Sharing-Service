@@ -4,6 +4,8 @@
 
 #include <fstream>
 
+#include "reply_types.hpp"
+
 class images_server : public Server
 {
 
@@ -41,7 +43,7 @@ private:
         cout << sql_statment << endl;
     }
 
-    void verify_user(nlohmann::json request)
+    void verify_user(nlohmann::json request, struct sockaddr_in client_address_ )
     {
         char sql_statment[MAX_MSG];
 
@@ -65,9 +67,13 @@ private:
         
         cout << "after: " << exists << endl; 
 
-        if (! exists )
-            throw invalid_argument("user does not exist");
-        
+        nlohmann::json reply;
+
+        reply["request_type"] = RequestType::VERIFY; 
+        reply["status"] = ( exists ) ? ReplyType::SUCCESS : ReplyType::FAILURE;
+
+        this->SendReply( (char *)reply.dump().c_str(), client_address_ );
+
     }
 
     void add_image_to_db( nlohmann::json request ){
@@ -87,6 +93,8 @@ private:
         {
             std::cerr << "Error Inserting the image" << std::endl;
             sqlite3_free(messaggeError);
+
+            return;
         }
         else
             std::cout << "image added created Successfully!" << std::endl;
@@ -104,7 +112,6 @@ private:
         cout << "done writing to a file " << endl;
 
     }
-
 
     void give_permission_to_user( nlohmann::json request ){
 
@@ -180,9 +187,73 @@ private:
 
     }
 
-    void get_image ( nlohmann::json request ){
+    void get_image ( nlohmann::json request, struct sockaddr_in client_address_  ){
+
+        char sql_statment[MAX_MSG];
+
+        char *messaggeError;
+        int exit = sqlite3_open("images_server.db", &this->DB);
 
 
+        sprintf(sql_statment, "select * from images where image_id = '%s' limit 1;" ,
+                string(request["image_id"]).c_str());
+
+
+        auto callback = [](void *data, int argc, char **argv, char **azColName){
+            
+            nlohmann::json& output = *reinterpret_cast<nlohmann::json*>(data);
+
+            for (int i = 0; i < argc; i++)
+            {
+                output[ azColName[i]  ] = argv[i] ? argv[i] : "NULL";
+            }
+
+            return 0;
+        };
+
+        nlohmann::json output;
+
+        exit = sqlite3_exec(DB, sql_statment, callback, &output , NULL);
+
+        if (exit != SQLITE_OK)
+        {
+            std::cerr << "ERROR GETTING IMAGE" << std::endl;
+            sqlite3_free(messaggeError);
+
+                        return;
+        }
+        else{
+            
+            std::cout << "sql command executed successfully" << std::endl;
+
+          
+        }
+
+        if ( output["content"] == nullptr ){
+
+            nlohmann::json reply;
+
+            reply["request_type"] = RequestType::GET_IMAGES_LIST; 
+            reply["status"] = ReplyType::FAILURE;
+
+            this->SendReply( (char *)reply.dump().c_str(), client_address_ );
+
+        }else{
+
+            nlohmann::json reply;
+
+            reply["request_type"] = RequestType::GET_IMAGES_LIST; 
+            reply["status"] = ReplyType::SUCCESS;
+            reply["images_content"] = output["content"];
+
+            this->SendReply( (char *)reply.dump().c_str(), client_address_ );
+        }
+
+        cout << "  here is the image you requested" << output << endl;
+
+        cout << "  end of image request" << endl;
+        
+        // TODO : REPLY STATUS 
 
     }
 
@@ -209,7 +280,7 @@ private:
             break;
         case RequestType::VERIFY:
             cout << "VERIFY" << endl;
-            this->verify_user(request);
+            this->verify_user(request, client_address_);
             //cout << "yess ???" << endl; 
             break;
 
@@ -229,8 +300,8 @@ private:
             break;
 
         case RequestType::GET_IMAGE:
-            cout << "get" << endl;
-            this->get_image( request );
+            cout << "get image -- one image " << endl;
+            this->get_image( request, client_address_ );
             break;
         case RequestType::GET_ALL:
             cout << "get_all" << endl;

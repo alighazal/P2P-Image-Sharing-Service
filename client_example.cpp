@@ -1,6 +1,8 @@
 #include "client.hpp"
 #include "base64.h"
 
+#include "reply_types.hpp"
+
 #include <fstream>
 
 using namespace std;
@@ -27,6 +29,24 @@ void get_list_of_images( Client client){
   }
 
   
+}
+
+
+bool verify_user( Client client,  nlohmann::json verify ){
+
+  client.send(/*message*/ (char *)verify.dump().c_str());
+
+  string reply_body = client.recieve();
+
+  nlohmann::json reply = nlohmann::json::parse(reply_body);
+
+  if ( reply["status"] == ReplyType::SUCCESS ){
+      cout << " !! verified !! " << endl;
+      return true;
+  } else{
+      cout << " !! not verified !! " << endl;
+      return false;
+  }
 }
 
 int main(int argc, char *argv[])
@@ -100,19 +120,49 @@ int main(int argc, char *argv[])
 
   // get list of images
   get_list_of_images( client );
+
+
+  nlohmann::json verify;
+
+  verify["request_type"] = RequestType::VERIFY;
+  verify["email"] = "Laila@emial.com";
+  verify["password"] = "123456";
+
+  verify_user( client,  verify );
+
+  verify["request_type"] = RequestType::VERIFY;
+  verify["email"] = "Laila@emial.com";
+  verify["password"] = "123456xx"; // wrong password
+
+  verify_user( client,  verify );
+
+
+
+  // get one image
+
+  nlohmann::json get_image;
+
+  get_image["request_type"] = RequestType::GET_IMAGE;
+  get_image["image_id"] = "555";
+
+  client.send(/*message*/ (char *)get_image.dump().c_str());
+
+  string out = client.recieve();
   
+  cout << " ------> " << out << endl;
+
+  nlohmann::json reply = nlohmann::json::parse( out );
+  
+  if ( reply["status"] != ReplyType::FAILURE ){
+    string out_image = base64_decode(string(reply["images_content"]));
+    ofstream wf("image_test_test_test.jpg", ios::out | ios::binary);
+    wf << out_image; 
+    cout << "done writing to a file " << endl;
+  }else{
+    cout << "sorry, image does not exit " << endl;
+
+  }
 
 
 
-  // j["request_type"] = RequestType::VERIFY;
-  // client.send(/*message*/ (char *)j.dump().c_str());
-
-  // j["request_type"] = RequestType::GET;
-  // client.send(/*message*/ (char *)j.dump().c_str());
-
-  // j["request_type"] = RequestType::GET_ALL;
-  // client.send(/*message*/ (char *)j.dump().c_str());
-
-  // j["request_type"] = RequestType::DELETE;
-  // client.send(/*message*/ (char *)j.dump().c_str());
 }

@@ -1,0 +1,4 @@
+
+enum ReplyType {
+  SUCCESS, FAILURE
+};

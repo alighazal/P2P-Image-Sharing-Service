@@ -27,7 +27,7 @@
 using namespace std;
 
 #define LOCAL_SERVER_PORT 1500
-#define MAX_MSG 1024 * 8
+#define MAX_MSG 1024 * 100
 #define MAX_KEYVAL 20
 
 

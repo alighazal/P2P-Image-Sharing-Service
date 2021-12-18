@@ -20,7 +20,7 @@
 
 
 #define REMOTE_SERVER_PORT 1500
-#define MAX_MSG 250
+#define MAX_MSG 1024 * 100
 
 // argv[0] --> ./client
 // argv[1] --> server ip
