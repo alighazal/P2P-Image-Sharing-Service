@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
   image_permission["sent_to"] = "2";
   image_permission["view_count"] = "5";
 
-  client.send(/*message*/ (char *)image_permission.dump().c_str());
+  //client.send(/*message*/ (char *)image_permission.dump().c_str());
 
   image_permission["request_type"] = RequestType::GIVE_PERMISSION;
   image_permission["image_id"] = "2";
@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
   image_permission["sent_to"] = "2";
   image_permission["view_count"] = "5";
 
-  client.send(/*message*/ (char *)image_permission.dump().c_str());
+  //client.send(/*message*/ (char *)image_permission.dump().c_str());
 
 
   // get list of images
@@ -143,7 +143,9 @@ int main(int argc, char *argv[])
   nlohmann::json get_image;
 
   get_image["request_type"] = RequestType::GET_IMAGE;
-  get_image["image_id"] = "555";
+  get_image["image_id"] = "1";
+  get_image["email"] = "Laila@emial.com";
+
 
   client.send(/*message*/ (char *)get_image.dump().c_str());
 

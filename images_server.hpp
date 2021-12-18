@@ -146,7 +146,7 @@ private:
         char *messaggeError;
         int exit = sqlite3_open("images_server.db", &this->DB);
 
-        sprintf(sql_statment, "select  images_permission.image_id from images_permission where images_permission.sent_to = %s ; ",
+        sprintf(sql_statment, "select  images_permission.image_id, images_permission.view_count from images_permission where images_permission.sent_to = %s ; ",
                 string(request["user_id"]).c_str());
 
         auto callback = [](void *data, int argc, char **argv, char **azColName){
@@ -171,8 +171,10 @@ private:
         exit = sqlite3_exec(DB, sql_statment, callback, &data_vector , NULL);
 
         vector<string> images_id; 
+        vector<string> images_count; 
         for ( auto& record: data_vector ){
             images_id.push_back( record["image_id"]);
+            images_count.push_back( record["view_count"]);
             for ( auto& field: record  ){
                 cout << field.first << " -- " << field.second << endl;
             }
@@ -182,6 +184,7 @@ private:
         nlohmann::json reply;
 
         reply["images_list"] = images_id;
+        reply["images_count"] = images_count;
 
         this->SendReply( (char *)reply.dump().c_str(), client_address_ );
 
@@ -195,8 +198,10 @@ private:
         int exit = sqlite3_open("images_server.db", &this->DB);
 
 
-        sprintf(sql_statment, "select * from images where image_id = '%s' limit 1;" ,
-                string(request["image_id"]).c_str());
+        sprintf(sql_statment, "select images.image_id as image_id, content,sent_from, sent_to, view_count from images  join images_permission on images_permission.image_id = images.image_id join users on sent_to = users.user_id where images.image_id = '%s' and users.email = '%s' limit 1;" ,
+                            string(request["image_id"]).c_str(),
+                            string(request["email"]).c_str()
+                            );
 
 
         auto callback = [](void *data, int argc, char **argv, char **azColName){
@@ -215,18 +220,16 @@ private:
 
         exit = sqlite3_exec(DB, sql_statment, callback, &output , NULL);
 
+        cout << "  here is the image you requested" << output << endl;
+
         if (exit != SQLITE_OK)
         {
             std::cerr << "ERROR GETTING IMAGE" << std::endl;
             sqlite3_free(messaggeError);
-
-                        return;
+            //return;
         }
         else{
-            
             std::cout << "sql command executed successfully" << std::endl;
-
-          
         }
 
         if ( output["content"] == nullptr ){
@@ -240,16 +243,28 @@ private:
 
         }else{
 
+
+
+            //UPDATE images_permission SET view_count = 6 WHERE image_id = 1 and sent_to=2 ;
+
+            sprintf(sql_statment, "UPDATE images_permission SET view_count = %d  WHERE image_id = '%s' and sent_to='%s';" ,
+                            ( stoi(string(output["view_count"])) - 1 ),
+                            string(output["image_id"]).c_str(),
+                            string(output["sent_to"]).c_str()
+                            );
+
+            exit = sqlite3_exec(DB, sql_statment, callback, &output , NULL);
+
             nlohmann::json reply;
 
             reply["request_type"] = RequestType::GET_IMAGES_LIST; 
             reply["status"] = ReplyType::SUCCESS;
             reply["images_content"] = output["content"];
+            reply["view_count"] = to_string( stoi(string(output["view_count"])) - 1 )  ;
 
             this->SendReply( (char *)reply.dump().c_str(), client_address_ );
         }
 
-        cout << "  here is the image you requested" << output << endl;
 
         cout << "  end of image request" << endl;
         
